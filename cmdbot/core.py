@@ -12,7 +12,7 @@ import os
 import sys
 import socket
 import logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 #i18n installation
 import gettext
 try:
@@ -129,18 +129,22 @@ class Bot(object):
 
     def process_line(self, line):
         "Process the Line object"
-        func = None
         try:
-            func = getattr(self, 'do_%s' % line.verb)
-        except UnicodeEncodeError:
-            pass  # Do nothing, it won't work.
-        except AttributeError:
-            if line.direct:
-                # it's an instruction, we didn't get it.
-                self.say(_("%(nick)s: I have no clue...") % {'nick': line.nick_from})
-            self.process_noverb(line)
-        if func:
-            return func(line)
+            func = None
+            try:
+                func = getattr(self, 'do_%s' % line.verb)
+            except UnicodeEncodeError:
+                pass  # Do nothing, it won't work.
+            except AttributeError:
+                if line.direct:
+                    # it's an instruction, we didn't get it.
+                    self.say(_("%(nick)s: I have no clue...") % {'nick': line.nick_from})
+                self.process_noverb(line)
+            if func:
+                return func(line)
+        except:
+            logging.exception('Bot Error')
+            self.me("is going to die :( an exception occurs")
 
     def _raw_ping(self, line):
         "Raw PING/PONG game. Prevent your bot from being disconnected by server"
@@ -183,10 +187,10 @@ class Bot(object):
                 readbuffer = temp.pop()
                 for raw_line in temp:
                     raw_line = raw_line.rstrip()
+                    logging.debug(raw_line)
                     if raw_line.startswith('PING'):
                         self._raw_ping(raw_line)
                     elif self.config.chan in raw_line and 'PRIVMSG' in raw_line:
-                        logging.debug(raw_line)
                         line = self.parse_line(raw_line)
                         self.process_line(line)
         except KeyboardInterrupt:
