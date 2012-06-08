@@ -12,7 +12,7 @@ import os
 import sys
 import socket
 import logging
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 #i18n installation
 import gettext
 try:
