@@ -102,6 +102,12 @@ class Bot(object):
         "/me message"
         self.say("\x01%s %s\x01" % ("ACTION", message))
 
+    def nick(self, new_nick):
+        """/nick new_nick
+        """
+        self.config.nick = new_nick
+        self.s.send("NICK %s\r\n" % self.config.nick)
+
     def parse_line(self, line):
         "Analyse the line. Return a Line object"
         message = nick_from = ''
