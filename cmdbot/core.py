@@ -12,7 +12,12 @@ import os
 import sys
 import socket
 import logging
-logging.basicConfig(level=logging.INFO)
+
+if "CMDBOT_DEBUG" in os.environ:
+    logging.basicConfig(level=logging.DEBUG)
+else:
+    logging.basicConfig(level=logging.INFO)
+
 #i18n installation
 import gettext
 try:
@@ -92,7 +97,7 @@ class Bot(object):
         self.s.send("NICK %s\r\n" % self.config.nick)
         self.s.send("USER %s %s bla :%s\r\n" % (
             self.config.ident, self.config.host, self.config.realname))
-        self.s.send("JOIN :%s\r\n" % self.config.chan)
+        self.s.send("JOIN %s\r\n" % self.config.chan)
         self.say(self.welcome_message)
 
     def say(self, message):
@@ -166,9 +171,6 @@ class Bot(object):
     @direct
     def do_help(self, line):
         "(direct) Gives some help"
-        self.say(_("%(nick)s: you need some help? Here is some...")
-            % {'nick': line.nick_from})
-
         splitted = line.message.split()
         if len(splitted) == 1:
             self.say(_('Available commands: %(commands)s')
