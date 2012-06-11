@@ -87,6 +87,8 @@ class Bot(object):
         "Connect to the server and join the chan"
         logging.info(_("Connection to host..."))
         self.s.connect((self.config.host, self.config.port))
+        if self.config.password:
+            self.s.send("PASS %s\r\n" % self.config.password)
         self.s.send("NICK %s\r\n" % self.config.nick)
         self.s.send("USER %s %s bla :%s\r\n" % (
             self.config.ident, self.config.host, self.config.realname))

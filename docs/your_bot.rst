@@ -129,7 +129,7 @@ exactly the same.
 The Configuration you want
 ==========================
 
-CmdBot is coming with two available configuration modules. The default one is
+CmdBot is coming with three available configuration modules. The default one is
 using the "ini file" described in :ref:`the ini file section <ini-file-label>`.
 
 But you can override this using the :class:`ArgumentConfiguration`. Like this:
@@ -142,11 +142,23 @@ But you can override this using the :class:`ArgumentConfiguration`. Like this:
     class ArgumentBot(Bot):
         config_class = ArgumentConfiguration
 
+Or like this:
+
+.. code-block:: python
+
+    from cmdbot.core import Bot
+    from cmdbot.configs import EnvironmentConfiguration
+
+    class EnvBot(Bot):
+        config_class = EnvironmentConfiguration
+
+
 That's it. If you want, you can build your own configuration module. All you have
 to do is to build one that has at least the following available properties (if
 not mentioned, should be a string):
 
 * host
+* password
 * chan
 * port - should be an int
 * nick

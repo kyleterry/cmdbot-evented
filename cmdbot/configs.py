@@ -11,6 +11,7 @@ from ConfigParser import SafeConfigParser
 DEFAULT_VARS = {
     'port': '6667',
     'nick': 'cmdbot',
+    'password': '',
     'ident': 'cmdbot',
     'realname': 'Cmd Bot',
     'admins': '',
@@ -45,6 +46,7 @@ class IniFileConfiguration(GenericConfiguration):
 
         self.port = int(config.get('general', 'port', vars=DEFAULT_VARS))
         self.nick = config.get('general', 'nick', vars=DEFAULT_VARS)
+        self.password = config.get('general', 'password', vars=DEFAULT_VARS)
         self.ident = config.get('general', 'ident', vars=DEFAULT_VARS)
         self.realname = config.get('general', 'realname', vars=DEFAULT_VARS)
         # special case: admins
@@ -74,6 +76,8 @@ class ArgumentConfiguration(GenericConfiguration):
             help='The string to use to authenticate with the servers')
         parser.add_argument('--nick', default=DEFAULT_VARS['nick'],
             help="Your bot's nickname")
+        parser.add_argument('--password', default=DEFAULT_VARS['password'],
+            help="IRC server password")
         parser.add_argument('--realname', default=DEFAULT_VARS['realname'],
             help="What will be used as a 'real name' by your bot")
         parser.add_argument('--admins', default='',
@@ -85,6 +89,7 @@ class ArgumentConfiguration(GenericConfiguration):
         self.chan = '#%s' % args.chan
         self.port = int(args.port)
         self.nick = args.nick
+        self.password = args.password
         self.ident = args.ident
         self.realname = args.realname
         # special case
@@ -104,6 +109,7 @@ class EnvironmentConfiguration(GenericConfiguration):
 
         self.port = int(os.environ.get("CMDBOT_PORT", DEFAULT_VARS['port']))
         self.nick = os.environ.get("CMDBOT_NICK", DEFAULT_VARS['nick'])
+        self.password = os.environ.get("CMDBOT_PASSWORD", DEFAULT_VARS['password'])
         self.ident = os.environ.get("CMDBOT_IDENT", DEFAULT_VARS['ident'])
         self.realname = os.environ.get("CMDBOT_REALNAME", DEFAULT_VARS['realname'])
         admins = os.environ.get("CMDBOT_ADMINS", DEFAULT_VARS['admins'])
