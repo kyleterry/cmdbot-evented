@@ -160,6 +160,7 @@ not mentioned, should be a string):
 * host
 * password
 * chan
+* chan_password
 * port - should be an int
 * nick
 * ident

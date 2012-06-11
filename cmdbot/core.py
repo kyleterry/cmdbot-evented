@@ -97,7 +97,8 @@ class Bot(object):
         self.s.send("NICK %s\r\n" % self.config.nick)
         self.s.send("USER %s %s bla :%s\r\n" % (
             self.config.ident, self.config.host, self.config.realname))
-        self.s.send("JOIN %s\r\n" % self.config.chan)
+        channel = "%s %s" % (self.config.chan, self.config.chan_password)
+        self.s.send("JOIN %s\r\n" % channel.strip())
         self.say(self.welcome_message)
 
     def say(self, message):

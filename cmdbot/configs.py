@@ -15,6 +15,7 @@ DEFAULT_VARS = {
     'ident': 'cmdbot',
     'realname': 'Cmd Bot',
     'admins': '',
+    'chan_password': '',
 }
 
 
@@ -44,11 +45,13 @@ class IniFileConfiguration(GenericConfiguration):
         self.host = config.get('general', 'host')
         self.chan = str(config.get('general', 'chan'))
 
+        self.chan_password = config.get('general', 'chan_password', vars=DEFAULT_VARS)
         self.port = int(config.get('general', 'port', vars=DEFAULT_VARS))
         self.nick = config.get('general', 'nick', vars=DEFAULT_VARS)
         self.password = config.get('general', 'password', vars=DEFAULT_VARS)
         self.ident = config.get('general', 'ident', vars=DEFAULT_VARS)
         self.realname = config.get('general', 'realname', vars=DEFAULT_VARS)
+
         # special case: admins
         if config.has_option("general", "admins"):
             admins = config.get('general', 'admins')
@@ -70,6 +73,8 @@ class ArgumentConfiguration(GenericConfiguration):
         parser.add_argument('chan',
             help='chan name. Mind not to add the "#" as a first character')
         # optional arguments
+        parser.add_argument('chan_password',
+            help='channel password', default=DEFAULT_VARS['chan_password'])
         parser.add_argument('--port', default=DEFAULT_VARS['port'], type=int,
             help='The port number.')
         parser.add_argument('--ident', default=DEFAULT_VARS['ident'],
@@ -87,6 +92,7 @@ class ArgumentConfiguration(GenericConfiguration):
 
         self.host = args.host
         self.chan = '#%s' % args.chan
+        self.chan_password = args.chan_password
         self.port = int(args.port)
         self.nick = args.nick
         self.password = args.password
@@ -106,6 +112,7 @@ class EnvironmentConfiguration(GenericConfiguration):
         self.chan = os.environ.get("CMDBOT_CHAN", False)
         if not self.chan:
             raise Exception("CMDBOT_CHAN is not set")
+        self.chan_password = os.environ.get("CMDBOT_CHAN_PASSWORD", DEFAULT_VARS['chan_password'])
 
         self.port = int(os.environ.get("CMDBOT_PORT", DEFAULT_VARS['port']))
         self.nick = os.environ.get("CMDBOT_NICK", DEFAULT_VARS['nick'])
