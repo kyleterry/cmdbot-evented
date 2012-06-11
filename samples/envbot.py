@@ -25,8 +25,8 @@ class EnvBot(Bot):
 
     @no_verb
     @regex("^\.status (?P<resource>\w+)$")
-    def test_regex(self, line):
-        self.me("%s is fine" % self.match.group("resource"))
+    def test_regex(self, line, match):
+        self.me("%s is fine" % match.group("resource"))
 
 
 if __name__ == '__main__':

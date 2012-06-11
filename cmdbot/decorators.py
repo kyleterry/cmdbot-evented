@@ -49,9 +49,9 @@ def regex(exp):
     def real_decorator(func):
         @wraps(func)
         def newfunc(bot, line):
-            bot.match = re.match(exp, line.message)
-            if bot.match:
-                return func(bot, line)
+            match = re.match(exp, line.message)
+            if match:
+                return func(bot, line, match)
         return newfunc
     return real_decorator
 
