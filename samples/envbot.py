@@ -11,7 +11,7 @@ If you want to run it::
     python envbot.py
 """
 from cmdbot.core import Bot
-from cmdbot.decorators import direct, admin
+from cmdbot.decorators import direct, admin, no_verb, regex
 from cmdbot.configs import EnvironmentConfiguration
 
 
@@ -22,6 +22,11 @@ class EnvBot(Bot):
     @admin
     def do_hello(self, line):
         self.say("You're my master")
+
+    @no_verb
+    @regex("^\.status (?P<resource>\w+)$")
+    def test_regex(self, line):
+        self.me("%s is fine" % self.match.group("resource"))
 
 
 if __name__ == '__main__':

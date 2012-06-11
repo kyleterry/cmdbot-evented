@@ -1,6 +1,6 @@
 #-*- coding: utf8 -*-
 from functools import wraps
-
+import re
 
 def direct(func):
     "Decorator: only process the line if it's a direct message"
@@ -12,7 +12,7 @@ def direct(func):
 
 
 def admin(func):
-    "Decorator, only process the line if the author is in the admin list"
+    "Decorator: only process the line if the author is in the admin list"
     @wraps(func)
     def newfunc(bot, line):
         if line.nick_from in bot.config.admins:
@@ -21,7 +21,7 @@ def admin(func):
 
 
 def contains(string):
-    "Decorator, only process the line if the author mentionning the designated string"
+    "Decorator: only process the line if the author mentionning the designated string"
     def real_decorator(func):
         @wraps(func)
         def newfunc(bot, line):
@@ -42,3 +42,16 @@ def no_help(func):
     """Decorator: define a function that will never display its help if asked"""
     func.no_help = True
     return func
+
+
+def regex(exp):
+    "Decorator: only process the line if it matched with regular expression"
+    def real_decorator(func):
+        @wraps(func)
+        def newfunc(bot, line):
+            bot.match = re.match(exp, line.message)
+            if bot.match:
+                return func(bot, line)
+        return newfunc
+    return real_decorator
+
