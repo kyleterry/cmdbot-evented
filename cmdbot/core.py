@@ -12,6 +12,7 @@ import os
 import sys
 import socket
 import logging
+from ssl import wrap_socket, CERT_NONE
 
 if "CMDBOT_DEBUG" in os.environ:
     logging.basicConfig(level=logging.DEBUG)
@@ -86,7 +87,11 @@ class Bot(object):
                     # little trick. helps finding out if function is decorated
                     self.no_help_functions.append(name.replace('do_', ''))
         logging.debug(self.no_help_functions)
-        self.s = socket.socket()
+
+        if self.config.ssl:
+            self.s = wrap_socket(socket.socket(), server_side=False, cert_reqs=CERT_NONE)
+        else:
+            self.s = socket.socket()
 
     def connect(self):
         "Connect to the server and join the chan"

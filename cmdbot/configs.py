@@ -16,6 +16,7 @@ DEFAULT_VARS = {
     'realname': 'Cmd Bot',
     'admins': '',
     'chan_password': '',
+    'ssl': False
 }
 
 
@@ -47,6 +48,7 @@ class IniFileConfiguration(GenericConfiguration):
 
         self.chan_password = config.get('general', 'chan_password', vars=DEFAULT_VARS)
         self.port = int(config.get('general', 'port', vars=DEFAULT_VARS))
+        self.ssl = True if config.has_option('general', 'ssl') else DEFAULT_VARS['ssl']
         self.nick = config.get('general', 'nick', vars=DEFAULT_VARS)
         self.password = config.get('general', 'password', vars=DEFAULT_VARS)
         self.ident = config.get('general', 'ident', vars=DEFAULT_VARS)
@@ -73,10 +75,12 @@ class ArgumentConfiguration(GenericConfiguration):
         parser.add_argument('chan',
             help='chan name. Mind not to add the "#" as a first character')
         # optional arguments
-        parser.add_argument('chan_password',
-            help='channel password', default=DEFAULT_VARS['chan_password'])
+        parser.add_argument('--chan_password',
+            help='Channel password', default=DEFAULT_VARS['chan_password'])
         parser.add_argument('--port', default=DEFAULT_VARS['port'], type=int,
             help='The port number.')
+        parser.add_argument('--ssl', default=DEFAULT_VARS['ssl'], action="store_true",
+            help='Use SSL.')
         parser.add_argument('--ident', default=DEFAULT_VARS['ident'],
             help='The string to use to authenticate with the servers')
         parser.add_argument('--nick', default=DEFAULT_VARS['nick'],
@@ -94,6 +98,7 @@ class ArgumentConfiguration(GenericConfiguration):
         self.chan = '#%s' % args.chan
         self.chan_password = args.chan_password
         self.port = int(args.port)
+        self.ssl = args.ssl
         self.nick = args.nick
         self.password = args.password
         self.ident = args.ident
@@ -115,6 +120,7 @@ class EnvironmentConfiguration(GenericConfiguration):
         self.chan_password = os.environ.get("CMDBOT_CHAN_PASSWORD", DEFAULT_VARS['chan_password'])
 
         self.port = int(os.environ.get("CMDBOT_PORT", DEFAULT_VARS['port']))
+        self.ssl = True if "CMDBOT_SSL" in os.environ else DEFAULT_VARS['ssl']
         self.nick = os.environ.get("CMDBOT_NICK", DEFAULT_VARS['nick'])
         self.password = os.environ.get("CMDBOT_PASSWORD", DEFAULT_VARS['password'])
         self.ident = os.environ.get("CMDBOT_IDENT", DEFAULT_VARS['ident'])
