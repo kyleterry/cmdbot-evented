@@ -47,6 +47,8 @@ def no_help(func):
 def regex(exp):
     "Decorator: only process the line if it matched with regular expression"
     def real_decorator(func):
+        func.no_verb = True
+
         @wraps(func)
         def newfunc(bot, line):
             match = re.match(exp, line.message)
