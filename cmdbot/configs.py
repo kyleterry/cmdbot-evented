@@ -20,10 +20,15 @@ DEFAULT_VARS = {
 
 
 class GenericConfiguration(object):
+    def _normalize_channels(self, chan_list):
+        channels = []
+        for chan in chan_list:
+            channels.append(chan if chan.startswith("#") else "#" + chan)
+        return channels
 
     def __repr__(self):
         result = []
-        keys = ('host', 'chan', 'port', 'nick')
+        keys = ('host', 'channels', 'port', 'nick')
         for key in keys:
             result.append('* %s' % getattr(self, key))
         result.append('* %s' % ', '.join(self.admins))
@@ -43,7 +48,7 @@ class IniFileConfiguration(GenericConfiguration):
 
         # Host and chan are the only arguments that *need* a user-defined value
         self.host = config.get('general', 'host')
-        self.channels = str(config.get('general', 'channel')).split()
+        self.channels = self._normalize_channels(str(config.get('general', 'channel')).split())
 
         self.port = int(config.get('general', 'port', vars=DEFAULT_VARS))
         self.ssl = True if config.has_option('general', 'ssl') else DEFAULT_VARS['ssl']
@@ -91,7 +96,7 @@ class ArgumentConfiguration(GenericConfiguration):
         args = parser.parse_args()
 
         self.host = args.host
-        self.channels = ['#%s' % chan for chan in args.channel]
+        self.channels = self._normalize_channels(args.channel)
         self.port = int(args.port)
         self.ssl = args.ssl
         self.nick = args.nick
@@ -111,7 +116,7 @@ class EnvironmentConfiguration(GenericConfiguration):
 
         # split chan env var into channels with/without password
         # ex. CMDBOT_CHAN="channel1,password channel2 channel3,password3"
-        self.channels = os.environ.get("CMDBOT_CHANNELS", []).split()
+        self.channels = self._normalize_channels(os.environ.get("CMDBOT_CHANNELS", []).split())
         if not self.channels:
             raise Exception("CMDBOT_CHAN is not set")
 
@@ -126,5 +131,3 @@ class EnvironmentConfiguration(GenericConfiguration):
             self.admins = admins.split(",")
         else:
             self.admins = [admins]
-
-#CMDBOT_CHAN="channel1,password channel2 channel3"
