@@ -13,6 +13,7 @@ import sys
 import socket
 import logging
 from ssl import wrap_socket, CERT_NONE
+import time
 
 if "CMDBOT_DEBUG" in os.environ:
     logging.basicConfig(level=logging.DEBUG)
@@ -88,28 +89,46 @@ class Bot(object):
                     self.no_help_functions.append(name.replace('do_', ''))
         logging.debug(self.no_help_functions)
 
+    def connect(self):
+        "Connect to the server and join the chan"
+        logging.info(_("Connection to host..."))
+
         if self.config.ssl:
             self.s = wrap_socket(socket.socket(), server_side=False, cert_reqs=CERT_NONE)
         else:
             self.s = socket.socket()
 
-    def connect(self):
-        "Connect to the server and join the chan"
-        logging.info(_("Connection to host..."))
-        self.s.connect((self.config.host, self.config.port))
+        while 1:
+            try:
+                self.s.connect((self.config.host, self.config.port))
+                break
+            except socket.error as e:
+                logging.exception(e)
+                logging.info("sleeping for 5 secs ...")
+                time.sleep(5)
+
         if self.config.password:
-            self.s.send("PASS %s\r\n" % self.config.password)
-        self.s.send("NICK %s\r\n" % self.config.nick)
-        self.s.send("USER %s %s bla :%s\r\n" % (
+            self.send("PASS %s\r\n" % self.config.password)
+        self.send("NICK %s\r\n" % self.config.nick)
+        self.send("USER %s %s bla :%s\r\n" % (
             self.config.ident, self.config.host, self.config.realname))
         channel = "%s %s" % (self.config.chan, self.config.chan_password)
-        self.s.send("JOIN %s\r\n" % channel.strip())
+        self.send("JOIN %s\r\n" % channel.strip())
         self.say(self.welcome_message)
+
+    def close(self):
+        """ closing connection """
+        self.s.close()
+
+    def send(self, msg):
+        """ sending message to irc server """
+        logging.debug("send: %s" % msg)
+        self.s.send(msg)
 
     def say(self, message):
         "Say that `message` to the channel"
         msg = 'PRIVMSG %s :%s\r\n' % (self.config.chan, message)
-        self.s.send(msg)
+        self.send(msg)
 
     def me(self, message):
         "/me message"
@@ -119,7 +138,7 @@ class Bot(object):
         """/nick new_nick
         """
         self.config.nick = new_nick
-        self.s.send("NICK %s\r\n" % self.config.nick)
+        self.send("NICK %s\r\n" % self.config.nick)
 
     def parse_line(self, line):
         "Analyse the line. Return a Line object"
@@ -167,7 +186,7 @@ class Bot(object):
 
     def _raw_ping(self, line):
         "Raw PING/PONG game. Prevent your bot from being disconnected by server"
-        self.s.send(line.replace('PING', 'PONG'))
+        self.send(line.replace('PING', 'PONG'))
 
     @direct
     def do_ping(self, line):
@@ -199,18 +218,23 @@ class Bot(object):
         try:
             while 1:
                 readbuffer = readbuffer + self.s.recv(1024).decode('utf')
+                if not readbuffer:
+                    # connection lost, reconnect
+                    self.close()
+                    self.connect()
+                    continue
                 temp = readbuffer.split("\n")  # string.split
                 readbuffer = temp.pop()
                 for raw_line in temp:
-                    raw_line = raw_line.rstrip()
-                    logging.debug(raw_line)
+                    logging.debug("recv: %s" % raw_line.rstrip())
                     if raw_line.startswith('PING'):
                         self._raw_ping(raw_line)
                     elif self.config.chan in raw_line and 'PRIVMSG' in raw_line:
-                        line = self.parse_line(raw_line)
+                        line = self.parse_line(raw_line.rstrip())
                         self.process_line(line)
         except KeyboardInterrupt:
-            self.s.send('QUIT :%s\r\n' % self.exit_message)
+            self.send('QUIT :%s\r\n' % self.exit_message)
+            self.close()
             sys.exit(_("Bot has been shut down. See you."))
 
 
