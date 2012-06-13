@@ -3,6 +3,10 @@
 """This bot "plays" dices with you. This illustrates how to build
 new decorators for actions and how to use them.
 """
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
+
 import random
 from functools import wraps
 from cmdbot.core import Bot, direct, logging

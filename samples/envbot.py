@@ -14,8 +14,12 @@ import logging
 FORMAT = '%(asctime)-15s [%(levelname)s] %(message)s'
 logging.basicConfig(format=FORMAT, level=logging.DEBUG)
 
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
+
 from cmdbot.core import Bot
-from cmdbot.decorators import direct, admin, no_verb, regex
+from cmdbot.decorators import direct, admin, regex
 from cmdbot.configs import EnvironmentConfiguration
 
 
@@ -27,7 +31,6 @@ class EnvBot(Bot):
     def do_hello(self, line):
         self.say("You're my master")
 
-    @no_verb
     @regex("^\.status (?P<resource>\w+)$")
     def test_regex(self, line, match):
         self.me("%s is fine" % match.group("resource"))
