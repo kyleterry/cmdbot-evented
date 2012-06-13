@@ -7,7 +7,10 @@ use it for something interesting.
 
 Every other bot you will want to build with this module can be class that
 extends the Bot main class.
+
+Some IRC Line parsing code is bought from the cloudbot guys (https://github.com/ClouDev/CloudBot). Thanks a lot :)
 """
+
 import os
 import sys
 import socket
@@ -42,7 +45,10 @@ irc_param_ref = re.compile(r'(?:^|(?<= ))(:.*|[^ ]+)').findall
 
 
 class Line(object):
-    """ IRC line """
+    """ IRC line
+
+    Code bought from cloudbot guys (https://github.com/ClouDev/CloudBot)
+    """
     def __init__(self, config, line):
         # parse the message
         self._raw_message = line
