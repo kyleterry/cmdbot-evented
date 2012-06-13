@@ -6,7 +6,7 @@ rather than the default IniFileConfiguration class.
 If you want to run it::
 
     export CMDBOT_HOST=IRC_SERVER
-    export CMDBOT_CHAN=IRC_CHANNEL
+    export CMDBOT_CHANNEL=IRC_CHANNEL
     export CMDBOT_NICK=IRC_NICKNAME
     python envbot.py
 """

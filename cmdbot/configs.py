@@ -115,10 +115,10 @@ class EnvironmentConfiguration(GenericConfiguration):
             raise Exception("CMDBOT_HOST is not set")
 
         # split chan env var into channels with/without password
-        # ex. CMDBOT_CHAN="channel1,password channel2 channel3,password3"
-        self.channels = self._normalize_channels(os.environ.get("CMDBOT_CHANNELS", []).split())
+        # ex. CMDBOT_CHANNEL="channel1,password channel2 channel3,password3"
+        self.channels = self._normalize_channels(os.environ.get("CMDBOT_CHANNEL", []).split())
         if not self.channels:
-            raise Exception("CMDBOT_CHAN is not set")
+            raise Exception("CMDBOT_CHANNEL is not set")
 
         self.port = int(os.environ.get("CMDBOT_PORT", DEFAULT_VARS['port']))
         self.ssl = True if "CMDBOT_SSL" in os.environ else DEFAULT_VARS['ssl']
