@@ -218,7 +218,7 @@ class Bot(object):
     @direct
     def do_ping(self, line):
         """ Reply 'pong'"""
-        self.say(_("%(nick)s: pong") % {'nick': line.nick})
+        self.say(_("%(nick)s: pong") % {'nick': line.nick_from})
 
     @direct
     def do_help(self, line):
