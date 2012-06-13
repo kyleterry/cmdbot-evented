@@ -34,17 +34,46 @@ except:
 from cmdbot.configs import IniFileConfiguration
 from cmdbot.decorators import direct
 
+import re
+irc_prefix_rem = re.compile(r'(.*?) (.*?) (.*)').match
+irc_noprefix_rem = re.compile(r'()(.*?) (.*)').match
+irc_netmask_rem = re.compile(r':?([^!@]*)!?([^@]*)@?(.*)').match
+irc_param_ref = re.compile(r'(?:^|(?<= ))(:.*|[^ ]+)').findall
+
 
 class Line(object):
-    "IRC line"
-    def __init__(self, nick, message, direct=False):
-        self.nick_from = nick
-        self._raw_message = message
-        self.message = message.lower()
+    """ IRC line """
+    def __init__(self, config, line):
+        # parse the message
+        self._raw_message = line
+
+        if line.startswith(":"):  # has a prefix
+            prefix, self.command, params = irc_prefix_rem(line).groups()
+        else:
+            prefix, self.command, arams = irc_noprefix_rem(line).groups()
+
+        self.nick_from, self.user, self.host = irc_netmask_rem(prefix).groups()
+        self.mask = self.user + "@" + self.host
+        paramlist = irc_param_ref(params)
+        lastparam = ""
+        if paramlist:
+            if paramlist[-1].startswith(':'):
+                paramlist[-1] = paramlist[-1][1:]
+            lastparam = paramlist[-1]
+
+        self.channel = paramlist[0]
+        self.message = lastparam.lower()
+        self.direct = True if self.message.startswith(config.nick) else False
         self.verb = ''
         if self.message:
-            self.verb = self.message.split()[0]
-        self.direct = direct
+            if self.direct:
+                self.verb = self.message.split()[1]
+            else:
+                self.verb = self.message.split()[0]
+
+        if self.direct:
+            # remove 'BOTNICK: ' from message
+            self.message = " ".join(self.message.split()[1:])
 
     def __repr__(self):
         return '<%s: %s>' % (self.nick_from, self.message)
@@ -112,9 +141,10 @@ class Bot(object):
         self.send("NICK %s\r\n" % self.config.nick)
         self.send("USER %s %s bla :%s\r\n" % (
             self.config.ident, self.config.host, self.config.realname))
-        channel = "%s %s" % (self.config.chan, self.config.chan_password)
-        self.send("JOIN %s\r\n" % channel.strip())
-        self.say(self.welcome_message)
+
+        # join channels
+        for channel in self.config.channels:
+            self.join(channel, self.welcome_message)
 
     def close(self):
         """ closing connection """
@@ -125,9 +155,20 @@ class Bot(object):
         logging.debug("send: %s" % msg)
         self.s.send(msg)
 
-    def say(self, message):
+    def join(self, channel, message=None):
+        password = ""
+        if "," in channel:
+            password = channel.split(",")[1]
+        chan = "%s %s" % (channel, password)
+        self.send("JOIN %s\r\n" % chan.strip())
+        if message:
+            self.say(message, channel=channel.split(",")[0])
+
+    def say(self, message, channel=None):
         "Say that `message` to the channel"
-        msg = 'PRIVMSG %s :%s\r\n' % (self.config.chan, message)
+        if not channel:
+            channel = self.line.channel
+        msg = 'PRIVMSG %s :%s\r\n' % (channel, message)
         self.send(msg)
 
     def me(self, message):
@@ -142,22 +183,8 @@ class Bot(object):
 
     def parse_line(self, line):
         "Analyse the line. Return a Line object"
-        message = nick_from = ''
-        direct = False
-        meta, _, raw_message = line.partition(self.config.chan)
-        # strip strings
-        raw_message = raw_message.strip()
-        # extract initial nick
-        meta = meta.strip()
-        nick_from = meta.partition('!')[0].replace(':', '')
-
-        if raw_message.startswith(':%s' % self.config.nick):
-            direct = True
-            _, _, message = raw_message.partition(' ')
-        else:
-            message = raw_message.replace(':', '').strip()
         # actually return the Line object
-        return Line(nick_from, message, direct)
+        return Line(self.config, line)
 
     def process_noverb(self, line):
         """Process the no-verb lines
@@ -190,12 +217,12 @@ class Bot(object):
 
     @direct
     def do_ping(self, line):
-        "(direct) Reply 'pong'"
-        self.say(_("%(nick)s: pong") % {'nick': line.nick_from})
+        """ Reply 'pong'"""
+        self.say(_("%(nick)s: pong") % {'nick': line.nick})
 
     @direct
     def do_help(self, line):
-        "(direct) Gives some help"
+        """ Gives some help """
         splitted = line.message.split()
         if len(splitted) == 1:
             self.say(_('Available commands: %(commands)s')
@@ -229,9 +256,9 @@ class Bot(object):
                     logging.debug("recv: %s" % raw_line.rstrip())
                     if raw_line.startswith('PING'):
                         self._raw_ping(raw_line)
-                    elif self.config.chan in raw_line and 'PRIVMSG' in raw_line:
-                        line = self.parse_line(raw_line.rstrip())
-                        self.process_line(line)
+                    elif 'PRIVMSG' in raw_line:
+                        self.line = self.parse_line(raw_line.rstrip())
+                        self.process_line(self.line)
         except KeyboardInterrupt:
             self.send('QUIT :%s\r\n' % self.exit_message)
             self.close()

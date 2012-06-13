@@ -15,7 +15,6 @@ DEFAULT_VARS = {
     'ident': 'cmdbot',
     'realname': 'Cmd Bot',
     'admins': '',
-    'chan_password': '',
     'ssl': False
 }
 
@@ -44,9 +43,8 @@ class IniFileConfiguration(GenericConfiguration):
 
         # Host and chan are the only arguments that *need* a user-defined value
         self.host = config.get('general', 'host')
-        self.chan = str(config.get('general', 'chan'))
+        self.channels = str(config.get('general', 'channel')).split()
 
-        self.chan_password = config.get('general', 'chan_password', vars=DEFAULT_VARS)
         self.port = int(config.get('general', 'port', vars=DEFAULT_VARS))
         self.ssl = True if config.has_option('general', 'ssl') else DEFAULT_VARS['ssl']
         self.nick = config.get('general', 'nick', vars=DEFAULT_VARS)
@@ -71,16 +69,14 @@ class ArgumentConfiguration(GenericConfiguration):
     def __init__(self):
         parser = argparse.ArgumentParser("CmdBot")
         # mandatory arguments
-        parser.add_argument('host', help="host name")
-        parser.add_argument('chan',
-            help='chan name. Mind not to add the "#" as a first character')
+        parser.add_argument('host', help="IRC server name")
+        parser.add_argument('channel', nargs='+',
+            help='Channel with/without password. ex: "channel1,password" (Mind not to add the "#" as a first character)')
         # optional arguments
-        parser.add_argument('--chan_password',
-            help='Channel password', default=DEFAULT_VARS['chan_password'])
         parser.add_argument('--port', default=DEFAULT_VARS['port'], type=int,
             help='The port number.')
         parser.add_argument('--ssl', default=DEFAULT_VARS['ssl'], action="store_true",
-            help='Use SSL.')
+            help='Use SSL connection.')
         parser.add_argument('--ident', default=DEFAULT_VARS['ident'],
             help='The string to use to authenticate with the servers')
         parser.add_argument('--nick', default=DEFAULT_VARS['nick'],
@@ -95,8 +91,7 @@ class ArgumentConfiguration(GenericConfiguration):
         args = parser.parse_args()
 
         self.host = args.host
-        self.chan = '#%s' % args.chan
-        self.chan_password = args.chan_password
+        self.channels = ['#%s' % chan for chan in args.channel]
         self.port = int(args.port)
         self.ssl = args.ssl
         self.nick = args.nick
@@ -114,10 +109,11 @@ class EnvironmentConfiguration(GenericConfiguration):
         if not self.host:
             raise Exception("CMDBOT_HOST is not set")
 
-        self.chan = os.environ.get("CMDBOT_CHAN", False)
-        if not self.chan:
+        # split chan env var into channels with/without password
+        # ex. CMDBOT_CHAN="channel1,password channel2 channel3,password3"
+        self.channels = os.environ.get("CMDBOT_CHANNELS", []).split()
+        if not self.channels:
             raise Exception("CMDBOT_CHAN is not set")
-        self.chan_password = os.environ.get("CMDBOT_CHAN_PASSWORD", DEFAULT_VARS['chan_password'])
 
         self.port = int(os.environ.get("CMDBOT_PORT", DEFAULT_VARS['port']))
         self.ssl = True if "CMDBOT_SSL" in os.environ else DEFAULT_VARS['ssl']
@@ -130,3 +126,5 @@ class EnvironmentConfiguration(GenericConfiguration):
             self.admins = admins.split(",")
         else:
             self.admins = [admins]
+
+#CMDBOT_CHAN="channel1,password channel2 channel3"

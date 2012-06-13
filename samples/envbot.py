@@ -18,8 +18,6 @@ from cmdbot.core import Bot
 from cmdbot.decorators import direct, admin, no_verb, regex
 from cmdbot.configs import EnvironmentConfiguration
 
-import subprocess
-
 
 class EnvBot(Bot):
     config_class = EnvironmentConfiguration
@@ -28,12 +26,6 @@ class EnvBot(Bot):
     @admin
     def do_hello(self, line):
         self.say("You're my master")
-
-    @direct
-    def do_shell(self, line):
-        logging.debug(line.message.split())
-        cmd = subprocess.Popen(line.message.split()[1:], stdout=subprocess.PIPE)
-        self.say(cmd.communicate()[0])
 
     @no_verb
     @regex("^\.status (?P<resource>\w+)$")
