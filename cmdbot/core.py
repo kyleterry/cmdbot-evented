@@ -158,7 +158,7 @@ class Bot(object):
     def join(self, channel, message=None):
         password = ""
         if "," in channel:
-            password = channel.split(",")[1]
+            channel, password = channel.split(",")
         chan = "%s %s" % (channel, password)
         self.send("JOIN %s\r\n" % chan.strip())
         if message:
