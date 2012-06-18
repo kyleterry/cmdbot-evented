@@ -174,7 +174,7 @@ class Bot(object):
         "Say that `message` to the channel"
         if not channel:
             channel = self.line.channel
-        msg = 'PRIVMSG %s :%s\r\n' % (channel, message)
+        msg = 'PRIVMSG %s :%s\r\n' % (channel.strip(), message.strip())
         self.send(msg)
 
     def me(self, message):
