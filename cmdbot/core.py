@@ -60,14 +60,14 @@ class Line(object):
 
         self.nick_from, self.user, self.host = irc_netmask_rem(prefix).groups()
         self.mask = self.user + "@" + self.host
-        paramlist = irc_param_ref(params)
+        self.paramlist = irc_param_ref(params)
         lastparam = ""
-        if paramlist:
-            if paramlist[-1].startswith(':'):
-                paramlist[-1] = paramlist[-1][1:]
-            lastparam = paramlist[-1]
+        if self.paramlist:
+            if self.paramlist[-1].startswith(':'):
+                self.paramlist[-1] = self.paramlist[-1][1:]
+            lastparam = self.paramlist[-1]
 
-        self.channel = paramlist[0]
+        self.channel = self.paramlist[0]
         self.message = lastparam.lower()
         self.direct = self.message.startswith(config.nick)
         self.verb = ''
@@ -130,7 +130,6 @@ class Bot(object):
                     # little trick. helps finding out if function is decorated
                     self.no_help_functions.append(name.replace('do_', ''))
         logging.debug(self.no_help_functions)
-        self.channels = {}
 
     def connect(self):
         "Connect to the server and join the chan"
@@ -172,8 +171,6 @@ class Bot(object):
     def join(self, channel, message=None):
         """ join a irc channel
         """
-        self.channels[channel] = {"topic": None}
-
         password = ""
         if "," in channel:
             channel, password = channel.split(",")
@@ -259,10 +256,10 @@ class Bot(object):
                 self.say(_('Sorry, command "%(command)s" unknown')
                     % {'command': command_name})
 
-    def topic_callback(self, line):
-        """ callback is called if channel topic is changed
+    def irc_reply_privmsg(self, line):
+        """ default handler for PRIVMSG
         """
-        pass
+        self.process_line(self.line)
 
     def run(self):
         "Main programme. Connect to server and start listening"
@@ -284,10 +281,12 @@ class Bot(object):
                         self._raw_ping(raw_line)
                     else:
                         self.line = self.parse_line(raw_line.rstrip())
-                        if self.line.command == 'PRIVMSG':
-                            self.process_line(self.line)
-                        elif self.line.command == 'TOPIC':
-                            self.topic_callback(self.line)
+                        try:
+                            # call callback for current irc command
+                            func = getattr(self, "irc_reply_%s" % self.line.command.lower())
+                            func(self.line)
+                        except AttributeError:
+                            pass
         except KeyboardInterrupt:
             self.send('QUIT :%s\r\n' % self.exit_message)
             self.close()

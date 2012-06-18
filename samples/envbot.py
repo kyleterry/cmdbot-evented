@@ -26,6 +26,9 @@ from cmdbot.configs import EnvironmentConfiguration
 class EnvBot(Bot):
     config_class = EnvironmentConfiguration
 
+    def irc_reply_topic(self, line):
+        print line.message
+
     @direct
     @admin
     def do_hello(self, line):
