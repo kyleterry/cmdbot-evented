@@ -85,6 +85,13 @@ class Line(object):
         return '<%s: %s>' % (self.nick_from, self.message)
 
 
+def chunks(s, n):
+    """  split string 's' into chunks of length 'n'
+    """
+    for start in xrange(0, len(s), n):
+        yield s[start:start+n]
+
+
 class Bot(object):
     "Main bot class"
 
@@ -174,12 +181,15 @@ class Bot(object):
         "Say that `message` to the channel"
         if not channel:
             channel = self.line.channel
-        msg = 'PRIVMSG %s :%s\r\n' % (channel.strip(), message.strip())
-        self.send(msg)
+        for line in message.splitlines():
+            for chunk in chunks(line, 100):
+                msg = 'PRIVMSG %s :%s\r\n' % (channel.strip(), chunk.strip())
+                self.send(msg)
 
     def me(self, message):
         "/me message"
-        self.say("\x01%s %s\x01" % ("ACTION", message))
+        for line in message.splitlines():
+            self.say("\x01%s %s\x01" % ("ACTION", line.strip()))
 
     def nick(self, new_nick):
         """/nick new_nick

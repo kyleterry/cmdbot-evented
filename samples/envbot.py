@@ -31,6 +31,16 @@ class EnvBot(Bot):
     def do_hello(self, line):
         self.say("You're my master")
 
+    @direct
+    @admin
+    def do_multiline(self, line):
+        self.say("line 1\nline 2\r\nline 3")
+
+    @direct
+    @admin
+    def do_long(self, line):
+        self.say("This is a very long message! " * 100)
+
     @regex("^\.status (?P<resource>\w+)$")
     def test_regex(self, line, match):
         self.me("%s is fine" % match.group("resource"))
