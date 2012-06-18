@@ -56,7 +56,7 @@ class Line(object):
         if line.startswith(":"):  # has a prefix
             prefix, self.command, params = irc_prefix_rem(line).groups()
         else:
-            prefix, self.command, arams = irc_noprefix_rem(line).groups()
+            prefix, self.command, params = irc_noprefix_rem(line).groups()
 
         self.nick_from, self.user, self.host = irc_netmask_rem(prefix).groups()
         self.mask = self.user + "@" + self.host
@@ -69,7 +69,7 @@ class Line(object):
 
         self.channel = paramlist[0]
         self.message = lastparam.lower()
-        self.direct = True if self.message.startswith(config.nick) else False
+        self.direct = self.message.startswith(config.nick)
         self.verb = ''
         if self.message:
             if self.direct:
@@ -130,6 +130,7 @@ class Bot(object):
                     # little trick. helps finding out if function is decorated
                     self.no_help_functions.append(name.replace('do_', ''))
         logging.debug(self.no_help_functions)
+        self.channels = {}
 
     def connect(self):
         "Connect to the server and join the chan"
@@ -169,6 +170,10 @@ class Bot(object):
         self.s.send(msg)
 
     def join(self, channel, message=None):
+        """ join a irc channel
+        """
+        self.channels[channel] = {"topic": None}
+
         password = ""
         if "," in channel:
             channel, password = channel.split(",")
@@ -254,6 +259,11 @@ class Bot(object):
                 self.say(_('Sorry, command "%(command)s" unknown')
                     % {'command': command_name})
 
+    def topic_callback(self, line):
+        """ callback is called if channel topic is changed
+        """
+        pass
+
     def run(self):
         "Main programme. Connect to server and start listening"
         self.connect()
@@ -272,9 +282,12 @@ class Bot(object):
                     logging.debug("recv: %s" % raw_line.rstrip())
                     if raw_line.startswith('PING'):
                         self._raw_ping(raw_line)
-                    elif 'PRIVMSG' in raw_line:
+                    else:
                         self.line = self.parse_line(raw_line.rstrip())
-                        self.process_line(self.line)
+                        if self.line.command == 'PRIVMSG':
+                            self.process_line(self.line)
+                        elif self.line.command == 'TOPIC':
+                            self.topic_callback(self.line)
         except KeyboardInterrupt:
             self.send('QUIT :%s\r\n' % self.exit_message)
             self.close()

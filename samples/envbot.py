@@ -45,6 +45,10 @@ class EnvBot(Bot):
     def test_regex(self, line, match):
         self.me("%s is fine" % match.group("resource"))
 
+    @direct
+    def do_test(self, line):
+      self.send("LIST #alphaquadrant\r\n")
+
 
 if __name__ == '__main__':
     bot = EnvBot()
