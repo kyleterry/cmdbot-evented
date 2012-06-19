@@ -256,7 +256,7 @@ class Bot(object):
         """
         if not channel:
             channel = self.line.channel
-        for line in message.splitlines():
+        for line in str(message).splitlines():
             for chunk in chunks(line, 100):
                 msg = 'PRIVMSG %s :%s\r\n' % (channel.strip(), chunk.strip())
                 self.send(msg)

@@ -31,6 +31,8 @@ class EnvBot(Bot):
 
     def irc_reply_topic(self, line):
         print line.message
+        print line.channel
+        self.brain[line.channel] = {'topic': line.message}
 
     @direct
     @admin
@@ -64,6 +66,7 @@ class EnvBot(Bot):
     @direct
     def do_get(self, line):
         self.say("%s: %s" % (multiprocessing.current_process().pid, self.brain.get('message', "unknown")))
+        self.say(self.brain.get(line.channel, "unknown"))
 
 
 if __name__ == '__main__':
