@@ -125,18 +125,19 @@ class Bot(object):
                     self.no_help_functions.append(name.replace('do_', ''))
         logging.debug(self.no_help_functions)
 
-    def connect(self):
-        "Connect to the server and join the chan"
+    def __connect(self):
+        """ Connect to the server and join all channels
+        """
         logging.info(_("Connection to host..."))
 
         if self.config.ssl:
-            self.s = wrap_socket(socket.socket(), server_side=False, cert_reqs=CERT_NONE)
+            self.__socket = wrap_socket(socket.socket(), server_side=False, cert_reqs=CERT_NONE)
         else:
-            self.s = socket.socket()
+            self.__socket = socket.socket()
 
         while 1:
             try:
-                self.s.connect((self.config.host, self.config.port))
+                self.__socket.connect((self.config.host, self.config.port))
                 break
             except socket.error as e:
                 logging.exception(e)
@@ -153,14 +154,91 @@ class Bot(object):
         for channel in self.config.channels:
             self.join(channel, self.welcome_message)
 
-    def close(self):
-        """ closing connection """
-        self.s.close()
+    def __close(self):
+        """ closing irc connection
+        """
+        self.__socket.close()
+
+    def __parse_line(self, line):
+        """ Analyse the line. Return a Line object
+        """
+        # actually return the Line object
+        return Line(self.config, line)
+
+    def __process_noverb(self, line):
+        """ Process the no-verb lines
+        (i.e. a line with a first verb unreferenced in the do_<verb> methods.
+        """
+        for func in self.no_verb_functions:
+            f = getattr(self, func)
+            f(line)
+
+    def __process_line(self, line):
+        """ Process the Line object
+        """
+        try:
+            try:
+                func = getattr(self, 'do_%s' % line.verb)
+                return func(line)
+            except UnicodeEncodeError:
+                pass  # Do nothing, it won't work.
+            except AttributeError:
+                if line.direct:
+                    # it's an instruction, we didn't get it.
+                    self.say(_("%(nick)s: I have no clue...") % {'nick': line.nick_from})
+                self.__process_noverb(line)
+        except:
+            logging.exception('Bot Error')
+            self.me("is going to die :( an exception occurs")
+
+    def __raw_ping(self, line):
+        """ Raw PING/PONG game. Prevent your bot from being disconnected by server
+        """
+        self.send(line.replace('PING', 'PONG'))
+
+    def __fork(self, line):
+        """ fork and exec callback
+        """
+        try:
+            # call callback for current irc command
+            func = getattr(self, "irc_reply_%s" % self.line.command.lower())
+            Process(target=func, args=(line,)).start()
+        except AttributeError:
+            pass
+
+    # public methods
+    def run(self):
+        "Main programme. Connect to server and start listening"
+        self.__connect()
+        readbuffer = ''
+        try:
+            while 1:
+                readbuffer = readbuffer + self.__socket.recv(1024).decode('utf')
+                if not readbuffer:
+                    # connection lost, reconnect
+                    self.__close()
+                    self.__connect()
+                    continue
+                temp = readbuffer.split("\n")  # string.split
+                readbuffer = temp.pop()
+                for raw_line in temp:
+                    logging.debug("recv: %s" % raw_line.rstrip())
+                    if raw_line.startswith('PING'):
+                        self.__raw_ping(raw_line)
+                    else:
+                        self.line = self.__parse_line(raw_line.rstrip())
+                        # exec callback as seperated process
+                        self.__fork(self.line)
+        except KeyboardInterrupt:
+            self.send('QUIT :%s\r\n' % self.exit_message)
+            self.__close()
+            sys.exit(_("Bot has been shut down. See you."))
 
     def send(self, msg):
-        """ sending message to irc server """
+        """ sending irc message to irc server
+        """
         logging.debug("send: %s" % msg)
-        self.s.send(msg)
+        self.__socket.send(msg)
 
     def join(self, channel, message=None):
         """ join a irc channel
@@ -174,7 +252,8 @@ class Bot(object):
             self.say(message, channel=channel.split(",")[0])
 
     def say(self, message, channel=None):
-        "Say that `message` to the channel"
+        """ Say that `message` into given or current channel
+        """
         if not channel:
             channel = self.line.channel
         for line in message.splitlines():
@@ -183,57 +262,34 @@ class Bot(object):
                 self.send(msg)
 
     def me(self, message):
-        "/me message"
+        """ /me 'message'
+        """
         for line in message.splitlines():
             self.say("\x01%s %s\x01" % ("ACTION", line.strip()))
 
     def nick(self, new_nick):
-        """/nick new_nick
+        """ /nick new_nick
         """
         self.config.nick = new_nick
         self.send("NICK %s\r\n" % self.config.nick)
 
-    def parse_line(self, line):
-        "Analyse the line. Return a Line object"
-        # actually return the Line object
-        return Line(self.config, line)
+    # standard irc_reply callbacks
+    def irc_reply_privmsg(self, line):
+        """ default handler for PRIVMSG
+        """
+        self.__process_line(self.line)
 
-    def process_noverb(self, line):
-        """Process the no-verb lines
-        (i.e. a line with a first verb unreferenced in the do_<verb> methods."""
-        for func in self.no_verb_functions:
-            f = getattr(self, func)
-            f(line)
-
-    def process_line(self, line):
-        "Process the Line object"
-        try:
-            try:
-                func = getattr(self, 'do_%s' % line.verb)
-                return func(line)
-            except UnicodeEncodeError:
-                pass  # Do nothing, it won't work.
-            except AttributeError:
-                if line.direct:
-                    # it's an instruction, we didn't get it.
-                    self.say(_("%(nick)s: I have no clue...") % {'nick': line.nick_from})
-                self.process_noverb(line)
-        except:
-            logging.exception('Bot Error')
-            self.me("is going to die :( an exception occurs")
-
-    def _raw_ping(self, line):
-        "Raw PING/PONG game. Prevent your bot from being disconnected by server"
-        self.send(line.replace('PING', 'PONG'))
-
+    # standard actions
     @direct
     def do_ping(self, line):
-        """ Reply 'pong'"""
+        """ Reply 'pong'
+        """
         self.say(_("%(nick)s: pong") % {'nick': line.nick_from})
 
     @direct
     def do_help(self, line):
-        """ Gives some help """
+        """ Gives some help
+        """
         splitted = line.message.split()
         if len(splitted) == 1:
             self.say(_('Available commands: %(commands)s')
@@ -248,48 +304,6 @@ class Bot(object):
             except AttributeError:
                 self.say(_('Sorry, command "%(command)s" unknown')
                     % {'command': command_name})
-
-    def irc_reply_privmsg(self, line):
-        """ default handler for PRIVMSG
-        """
-        self.process_line(self.line)
-
-    def fork(self, line):
-        """ fork and exec callback
-        """
-        try:
-            # call callback for current irc command
-            func = getattr(self, "irc_reply_%s" % self.line.command.lower())
-            Process(target=func, args=(line,)).start()
-        except AttributeError:
-            pass
-
-    def run(self):
-        "Main programme. Connect to server and start listening"
-        self.connect()
-        readbuffer = ''
-        try:
-            while 1:
-                readbuffer = readbuffer + self.s.recv(1024).decode('utf')
-                if not readbuffer:
-                    # connection lost, reconnect
-                    self.close()
-                    self.connect()
-                    continue
-                temp = readbuffer.split("\n")  # string.split
-                readbuffer = temp.pop()
-                for raw_line in temp:
-                    logging.debug("recv: %s" % raw_line.rstrip())
-                    if raw_line.startswith('PING'):
-                        self._raw_ping(raw_line)
-                    else:
-                        self.line = self.parse_line(raw_line.rstrip())
-                        # exec callback as seperated process
-                        self.fork(self.line)
-        except KeyboardInterrupt:
-            self.send('QUIT :%s\r\n' % self.exit_message)
-            self.close()
-            sys.exit(_("Bot has been shut down. See you."))
 
 
 if __name__ == '__main__':
