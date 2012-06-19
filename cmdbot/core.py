@@ -17,6 +17,8 @@ import socket
 import logging
 from ssl import wrap_socket, CERT_NONE
 import time
+from multiprocessing import Process, Manager
+
 
 if "CMDBOT_DEBUG" in os.environ:
     logging.basicConfig(level=logging.DEBUG)
@@ -93,17 +95,8 @@ def chunks(s, n):
 
 
 class Bot(object):
-    "Main bot class"
-
-    class Brain(object):
-
-        def knows(self, key, include_falses=False):
-            """Return True if the brain.key value is known *and* not None.
-            If the "with_none" option is set to True, event the 'false' values
-            (None, '', (), [], etc.) values are counted.
-            """
-            return hasattr(self, key) and (getattr(self, key) or include_falses)
-
+    """ Main bot class
+    """
     welcome_message = _("Hi everyone.")
     exit_message = _("Bye, all")
     # One can override this
@@ -113,7 +106,10 @@ class Bot(object):
         self.config = self.config_class()
         # special case: admins
         self.admins = self.config.admins
-        self.brain = self.Brain()  # this brain can contain *anything* you want.
+
+        # get shared memory manager as bot brain
+        manager = Manager()
+        self.brain = manager.dict()
 
         self.available_functions = []
         self.no_verb_functions = []
@@ -212,9 +208,9 @@ class Bot(object):
     def process_line(self, line):
         "Process the Line object"
         try:
-            func = None
             try:
                 func = getattr(self, 'do_%s' % line.verb)
+                return func(line)
             except UnicodeEncodeError:
                 pass  # Do nothing, it won't work.
             except AttributeError:
@@ -222,8 +218,6 @@ class Bot(object):
                     # it's an instruction, we didn't get it.
                     self.say(_("%(nick)s: I have no clue...") % {'nick': line.nick_from})
                 self.process_noverb(line)
-            if func:
-                return func(line)
         except:
             logging.exception('Bot Error')
             self.me("is going to die :( an exception occurs")
@@ -260,6 +254,16 @@ class Bot(object):
         """
         self.process_line(self.line)
 
+    def fork(self, line):
+        """ fork and exec callback
+        """
+        try:
+            # call callback for current irc command
+            func = getattr(self, "irc_reply_%s" % self.line.command.lower())
+            Process(target=func, args=(line,)).start()
+        except AttributeError:
+            pass
+
     def run(self):
         "Main programme. Connect to server and start listening"
         self.connect()
@@ -280,12 +284,8 @@ class Bot(object):
                         self._raw_ping(raw_line)
                     else:
                         self.line = self.parse_line(raw_line.rstrip())
-                        try:
-                            # call callback for current irc command
-                            func = getattr(self, "irc_reply_%s" % self.line.command.lower())
-                            func(self.line)
-                        except AttributeError:
-                            pass
+                        # exec callback as seperated process
+                        self.fork(self.line)
         except KeyboardInterrupt:
             self.send('QUIT :%s\r\n' % self.exit_message)
             self.close()

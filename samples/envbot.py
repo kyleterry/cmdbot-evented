@@ -18,6 +18,9 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 
+import time
+import multiprocessing
+
 from cmdbot.core import Bot
 from cmdbot.decorators import direct, admin, regex
 from cmdbot.configs import EnvironmentConfiguration
@@ -49,8 +52,18 @@ class EnvBot(Bot):
         self.me("%s is fine" % match.group("resource"))
 
     @direct
-    def do_test(self, line):
-      self.send("LIST #alphaquadrant\r\n")
+    def do_sleep(self, line):
+        self.say("%s: i'm going to sleep" % multiprocessing.current_process().pid)
+        time.sleep(10)
+        self.say("%s: i'm awake" % multiprocessing.current_process().pid)
+
+    @direct
+    def do_save(self, line):
+        self.brain['message'] = line.message
+
+    @direct
+    def do_get(self, line):
+        self.say("%s: %s" % (multiprocessing.current_process().pid, self.brain.get('message', "unknown")))
 
 
 if __name__ == '__main__':
