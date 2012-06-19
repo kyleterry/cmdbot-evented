@@ -124,10 +124,8 @@ class Bot(object):
                 if name.startswith('do_'):
                     self.available_functions.append(name.replace('do_', ''))
                 if hasattr(func, 'no_verb'):
-                    self.no_verb_functions.append(func)
+                    self.no_verb_functions.append(name)
                 if hasattr(func, "no_help"):
-                    self.no_help_functions.append(func)
-                    # little trick. helps finding out if function is decorated
                     self.no_help_functions.append(name.replace('do_', ''))
         logging.debug(self.no_help_functions)
 
@@ -208,7 +206,8 @@ class Bot(object):
         """Process the no-verb lines
         (i.e. a line with a first verb unreferenced in the do_<verb> methods."""
         for func in self.no_verb_functions:
-            func(line)
+            f = getattr(self, func)
+            f(line)
 
     def process_line(self, line):
         "Process the Line object"
