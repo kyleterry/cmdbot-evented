@@ -89,7 +89,7 @@ def chunks(s, n):
     """  split string 's' into chunks of length 'n'
     """
     for start in xrange(0, len(s), n):
-        yield s[start:start+n]
+        yield s[start:start + n]
 
 
 class Bot(object):
