@@ -134,20 +134,20 @@ class Bot(object):
                     self.no_help_functions.append(name.replace('do_', ''))
         logging.debug(self.no_help_functions)
 
-    def __connect(self):
+    def _connect(self):
         """ Connect to the server and join all channels
         """
         logging.info(_("Connection to host..."))
 
         if self.config.ssl:
             logging.debug("creating ssl socket")
-            self.__socket = wrap_socket(socket.socket(), server_side=False, cert_reqs=CERT_NONE)
+            self._socket = wrap_socket(socket.socket(), server_side=False, cert_reqs=CERT_NONE)
         else:
-            self.__socket = socket.socket()
+            self._socket = socket.socket()
 
         while 1:
             try:
-                self.__socket.connect((self.config.host, self.config.port))
+                self._socket.connect((self.config.host, self.config.port))
                 break
             except socket.error as e:
                 logging.exception(e)
@@ -164,18 +164,18 @@ class Bot(object):
         for channel in self.config.channels:
             self.join(channel, self.welcome_message)
 
-    def __close(self):
+    def _close(self):
         """ closing irc connection
         """
-        self.__socket.close()
+        self._socket.close()
 
-    def __parse_line(self, line):
+    def _parse_line(self, line):
         """ Analyse the line. Return a Line object
         """
         # actually return the Line object
         return Line(self.config, line)
 
-    def __process_noverb(self, line):
+    def _process_noverb(self, line):
         """ Process the no-verb lines
         (i.e. a line with a first verb unreferenced in the do_<verb> methods.
         """
@@ -183,7 +183,7 @@ class Bot(object):
             f = getattr(self, func)
             f(line)
 
-    def __process_line(self, line):
+    def _process_line(self, line):
         """ Process the Line object
         """
         try:
@@ -196,17 +196,17 @@ class Bot(object):
                 if line.direct:
                     # it's an instruction, we didn't get it.
                     self.say(_("%(nick)s: I have no clue...") % {'nick': line.nick_from})
-                self.__process_noverb(line)
+                self._process_noverb(line)
         except:
             logging.exception('Bot Error')
             self.me("is going to die :( an exception occurs")
 
-    def __raw_ping(self, line):
+    def _raw_ping(self, line):
         """ Raw PING/PONG game. Prevent your bot from being disconnected by server
         """
         self.send(line.replace('PING', 'PONG'))
 
-    def __fork(self, line):
+    def _fork(self, line):
         """ fork and exec callback
         """
         try:
@@ -219,30 +219,30 @@ class Bot(object):
     # public methods
     def run(self):
         "Main programme. Connect to server and start listening"
-        self.__connect()
+        self._connect()
         readbuffer = ''
         try:
             while 1:
-                readbuffer = readbuffer + self.__socket.recv(1024).decode('utf')
+                readbuffer = readbuffer + self._socket.recv(1024).decode('utf')
                 if not readbuffer:
                     logging.error("connection lost: '%s'" % readbuffer)
                     # connection lost, reconnect
-                    self.__close()
-                    self.__connect()
+                    self._close()
+                    self._connect()
                     continue
                 temp = readbuffer.split("\n")  # string.split
                 readbuffer = temp.pop()
                 for raw_line in temp:
                     logging.debug("recv: %s" % raw_line.rstrip())
                     if raw_line.startswith('PING'):
-                        self.__raw_ping(raw_line)
+                        self._raw_ping(raw_line)
                     else:
-                        self.line = self.__parse_line(raw_line.rstrip())
+                        self.line = self._parse_line(raw_line.rstrip())
                         # exec callback as seperated process
-                        self.__fork(self.line)
+                        self._fork(self.line)
         except KeyboardInterrupt:
             self.send('QUIT :%s' % self.exit_message)
-            self.__close()
+            self._close()
             sys.exit(_("Bot has been shut down. See you."))
 
     def send(self, msg):
@@ -250,7 +250,7 @@ class Bot(object):
         """
         msg = msg.strip()
         logging.debug("send: %s" % msg)
-        self.__socket.send(msg + "\r\n")
+        self._socket.send(msg + "\r\n")
 
     def join(self, channel, message=None):
         """ join a irc channel
@@ -289,7 +289,7 @@ class Bot(object):
     def irc_reply_privmsg(self, line):
         """ default handler for PRIVMSG
         """
-        self.__process_line(self.line)
+        self._process_line(self.line)
 
     # standard actions
     @direct
