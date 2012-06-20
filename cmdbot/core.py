@@ -17,7 +17,7 @@ import socket
 import logging
 from ssl import wrap_socket, CERT_NONE
 import time
-from multiprocessing import Process, Manager
+from threading import Thread, Lock
 
 
 if "CMDBOT_DEBUG" in os.environ:
@@ -94,6 +94,16 @@ def chunks(s, n):
         yield s[start:start + n]
 
 
+class BotBrain(object):
+    def __init__(self):
+        super(BotBrain, self).__setattr__("lock", Lock())
+
+    def __setattr__(self, key, value):
+        logging.debug('Waiting for lock')
+        with self.lock:
+            super(BotBrain, self).__setattr__(key, value)
+
+
 class Bot(object):
     """ Main bot class
     """
@@ -107,9 +117,8 @@ class Bot(object):
         # special case: admins
         self.admins = self.config.admins
 
-        # get shared memory manager as bot brain
-        manager = Manager()
-        self.brain = manager.dict()
+        # bot brain
+        self.brain = BotBrain()
 
         self.available_functions = []
         self.no_verb_functions = []
@@ -131,6 +140,7 @@ class Bot(object):
         logging.info(_("Connection to host..."))
 
         if self.config.ssl:
+            logging.debug("creating ssl socket")
             self.__socket = wrap_socket(socket.socket(), server_side=False, cert_reqs=CERT_NONE)
         else:
             self.__socket = socket.socket()
@@ -145,9 +155,9 @@ class Bot(object):
                 time.sleep(5)
 
         if self.config.password:
-            self.send("PASS %s\r\n" % self.config.password)
-        self.send("NICK %s\r\n" % self.config.nick)
-        self.send("USER %s %s bla :%s\r\n" % (
+            self.send("PASS %s" % self.config.password)
+        self.send("NICK %s" % self.config.nick)
+        self.send("USER %s %s bla :%s" % (
             self.config.ident, self.config.host, self.config.realname))
 
         # join channels
@@ -202,7 +212,7 @@ class Bot(object):
         try:
             # call callback for current irc command
             func = getattr(self, "irc_reply_%s" % self.line.command.lower())
-            Process(target=func, args=(line,)).start()
+            Thread(target=func, args=(line,)).start()
         except AttributeError:
             pass
 
@@ -215,6 +225,7 @@ class Bot(object):
             while 1:
                 readbuffer = readbuffer + self.__socket.recv(1024).decode('utf')
                 if not readbuffer:
+                    logging.error("connection lost: '%s'" % readbuffer)
                     # connection lost, reconnect
                     self.__close()
                     self.__connect()
@@ -230,15 +241,16 @@ class Bot(object):
                         # exec callback as seperated process
                         self.__fork(self.line)
         except KeyboardInterrupt:
-            self.send('QUIT :%s\r\n' % self.exit_message)
+            self.send('QUIT :%s' % self.exit_message)
             self.__close()
             sys.exit(_("Bot has been shut down. See you."))
 
     def send(self, msg):
         """ sending irc message to irc server
         """
+        msg = msg.strip()
         logging.debug("send: %s" % msg)
-        self.__socket.send(msg)
+        self.__socket.send(msg + "\r\n")
 
     def join(self, channel, message=None):
         """ join a irc channel
@@ -247,7 +259,7 @@ class Bot(object):
         if "," in channel:
             channel, password = channel.split(",")
         chan = "%s %s" % (channel, password)
-        self.send("JOIN %s\r\n" % chan.strip())
+        self.send("JOIN %s" % chan.strip())
         if message:
             self.say(message, channel=channel.split(",")[0])
 
@@ -258,7 +270,7 @@ class Bot(object):
             channel = self.line.channel
         for line in str(message).splitlines():
             for chunk in chunks(line, 100):
-                msg = 'PRIVMSG %s :%s\r\n' % (channel.strip(), chunk.strip())
+                msg = 'PRIVMSG %s :%s' % (channel.strip(), chunk.strip())
                 self.send(msg)
 
     def me(self, message):
@@ -271,7 +283,7 @@ class Bot(object):
         """ /nick new_nick
         """
         self.config.nick = new_nick
-        self.send("NICK %s\r\n" % self.config.nick)
+        self.send("NICK %s" % self.config.nick)
 
     # standard irc_reply callbacks
     def irc_reply_privmsg(self, line):
