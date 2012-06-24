@@ -25,6 +25,7 @@ setup(name='cmdbot',
           'argparse',
           'nose',
           'ipdb',
+          'gevent',
       ],
       entry_points="""
       # -*- Entry points: -*-

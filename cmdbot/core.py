@@ -13,11 +13,12 @@ Some IRC Line parsing code is bought from the cloudbot guys (https://github.com/
 
 import os
 import sys
-import socket
 import logging
 import gevent
 from gevent import monkey
-from ssl import wrap_socket, CERT_NONE
+from gevent import socket, queue
+from gevent.ssl import wrap_socket
+from ssl import CERT_NONE
 import time
 from threading import Thread, Lock
 
@@ -125,9 +126,18 @@ class Bot(object):
         # bot brain
         self.brain = BotBrain()
 
+        self._ibuffer = ''
+        self._obuffer = ''
+        self.iqueue = queue.Queue()
+        self.oqueue = queue.Queue()
         self.available_functions = []
         self.no_verb_functions = []
         self.no_help_functions = []
+
+        self._create_commands()
+        self._bootstrap_connect()
+
+    def _create_commands(self):
         for name in dir(self):
             func = getattr(self, name)
             if callable(func):
@@ -150,7 +160,7 @@ class Bot(object):
         else:
             self._socket = socket.socket()
 
-        while 1:
+        while True:
             try:
                 logging.info(_('Creating socket...'))
                 self._socket.connect((self.config.host, self.config.port))
@@ -159,7 +169,35 @@ class Bot(object):
                 logging.exception(e)
                 logging.info("sleeping for 5 secs ...")
                 time.sleep(5)
+        try:
+            jobs = [gevent.spawn(self._recv_loop), gevent.spawn(self._send_loop)]
+            gevent.joinall(jobs)
+        finally:
+            gevent.killall(jobs)
 
+
+    def _close(self):
+        """ closing irc connection
+        """
+        self._socket.close()
+
+    def _recv_loop(self):
+        while True:
+            data = self._socket.recv(1024).decode('utf')
+            self._ibuffer += data
+            while '\r\n' in self._ibuffer:
+                line, self._ibuffer = self._ibuffer.split('\r\n', 1)
+                self.iqueue.put(line)
+
+    def _send_loop(self):
+        while True:
+            line = self.oqueue.get().splitlines()[0][:500]
+            self._obuffer += line.encode('utf-8', 'replace') + '\r\n'
+            while self._obuffer:
+                sent = self._socket.send(self._obuffer)
+                self._obuffer = self._obuffer[sent:]
+
+    def _set_nick_and_join(self):
         if self.config.password:
             self.send("PASS %s" % self.config.password)
         self.send("NICK %s" % self.config.nick)
@@ -170,10 +208,9 @@ class Bot(object):
         for channel in self.config.channels:
             self.join(channel, self.welcome_message)
 
-    def _close(self):
-        """ closing irc connection
-        """
-        self._socket.close()
+    def _bootstrap_connect(self):
+        gevent.spawn(self._connect)
+        self._set_nick_and_join()
 
     def _parse_line(self, line):
         """ Analyse the line. Return a Line object
@@ -225,44 +262,29 @@ class Bot(object):
     # public methods
     def run(self):
         "Main programme. Connect to server and start listening"
-        import ipdb; ipdb.set_trace()
-        self._connect()
-        readbuffer = ''
         try:
-            read_buffer = gevent.spawn(self._read_buffer())
-            while 1:
-                if read_buffer.successful():
-                    read_buffer.start()
+            while True:
+                raw_line = self.iqueue.get()
+                logging.info("recv: %s" % raw_line.rstrip())
+                if raw_line.startswith('PING'):
+                    self._raw_ping(raw_line)
+                else:
+                    #:TODO: self.line is probably going to be problematic
+                    self.line = self._parse_line(raw_line.rstrip())
+                    # exec callback as seperated process
+                    self._fork(self.line)
         except KeyboardInterrupt:
             self.send('QUIT :%s' % self.exit_message)
             self._close()
             sys.exit(_("Bot has been shut down. See you."))
-
-    def _read_buffer(self):
-        readbuffer = ''
-        readbuffer = readbuffer + self._socket.recv(1024).decode('utf')
-        if not readbuffer:
-            logging.error("connection lost: '%s'" % readbuffer)
-            # connection lost, reconnect
-            self._close()
-            self._connect()
-        temp = readbuffer.split("\n")  # string.split
-        readbuffer = temp.pop()
-        for raw_line in temp:
-            logging.info("recv: %s" % raw_line.rstrip())
-            if raw_line.startswith('PING'):
-                self._raw_ping(raw_line)
-            else:
-                self.line = self._parse_line(raw_line.rstrip())
-                # exec callback as seperated process
-                self._fork(self.line)
 
     def send(self, msg):
         """ sending irc message to irc server
         """
         msg = msg.strip()
         logging.debug("send: %s" % msg)
-        self._socket.send(msg + "\r\n")
+        self.oqueue.put(msg)
+        #self._socket.send(msg + "\r\n")
 
     def join(self, channel, message=None):
         """ join a irc channel
