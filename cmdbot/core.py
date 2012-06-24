@@ -26,10 +26,11 @@ from threading import Thread, Lock
 monkey.patch_all()
 
 
-if "CMDBOT_DEBUG" in os.environ:
-    logging.basicConfig(level=logging.DEBUG)
-else:
-    logging.basicConfig(level=logging.INFO)
+#if "CMDBOT_DEBUG" in os.environ:
+#    logging.basicConfig(level=logging.DEBUG)
+#else:
+#    logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 
 #i18n installation
 import gettext
@@ -110,56 +111,28 @@ class BotBrain(object):
             super(BotBrain, self).__setattr__(key, value)
 
 
-class Bot(object):
-    """ Main bot class
-    """
-    welcome_message = _("Hi everyone.")
-    exit_message = _("Bye, all")
-    # One can override this
-    config_class = IniFileConfiguration
+class Connection(object):
 
-    def __init__(self, config_module=None):
-        self.config = self.config_class()
-        # special case: admins
-        self.admins = self.config.admins
-
-        # bot brain
-        self.brain = BotBrain()
-
+    def __init__(self, config):
+        self.config = config
         self._ibuffer = ''
         self._obuffer = ''
         self.iqueue = queue.Queue()
         self.oqueue = queue.Queue()
-        self.available_functions = []
-        self.no_verb_functions = []
-        self.no_help_functions = []
+        self._socket = self._create_socket()
 
-        self._create_commands()
-        self._bootstrap_connect()
+    def _create_socket(self):
+        if self.config.ssl:
+            logging.debug("creating ssl socket")
+            return wrap_socket(socket.socket(), server_side=False, cert_reqs=CERT_NONE)
+        else:
+            logging.debug("creating non-ssl socket")
+            return socket.socket()
 
-    def _create_commands(self):
-        for name in dir(self):
-            func = getattr(self, name)
-            if callable(func):
-                if name.startswith('do_'):
-                    self.available_functions.append(name.replace('do_', ''))
-                if hasattr(func, 'no_verb'):
-                    self.no_verb_functions.append(name)
-                if hasattr(func, "no_help"):
-                    self.no_help_functions.append(name.replace('do_', ''))
-        logging.debug(self.no_help_functions)
-
-    def _connect(self):
+    def connect(self):
         """ Connect to the server and join all channels
         """
         logging.info(_("Connection to host..."))
-
-        if self.config.ssl:
-            logging.debug("creating ssl socket")
-            self._socket = wrap_socket(socket.socket(), server_side=False, cert_reqs=CERT_NONE)
-        else:
-            self._socket = socket.socket()
-
         while True:
             try:
                 logging.info(_('Creating socket...'))
@@ -174,7 +147,6 @@ class Bot(object):
             gevent.joinall(jobs)
         finally:
             gevent.killall(jobs)
-
 
     def _close(self):
         """ closing irc connection
@@ -197,6 +169,42 @@ class Bot(object):
                 sent = self._socket.send(self._obuffer)
                 self._obuffer = self._obuffer[sent:]
 
+
+class Bot(object):
+    """ Main bot class
+    """
+    welcome_message = _("Hi everyone.")
+    exit_message = _("Bye, all")
+    # One can override this
+    config_class = IniFileConfiguration
+
+    def __init__(self, config_module=None):
+        self.config = self.config_class()
+        # special case: admins
+        self.admins = self.config.admins
+
+        # bot brain
+        self.brain = BotBrain()
+
+        self.available_functions = []
+        self.no_verb_functions = []
+        self.no_help_functions = []
+
+        self._create_commands()
+        self._bootstrap_connect()
+
+    def _create_commands(self):
+        for name in dir(self):
+            func = getattr(self, name)
+            if callable(func):
+                if name.startswith('do_'):
+                    self.available_functions.append(name.replace('do_', ''))
+                if hasattr(func, 'no_verb'):
+                    self.no_verb_functions.append(name)
+                if hasattr(func, "no_help"):
+                    self.no_help_functions.append(name.replace('do_', ''))
+        logging.debug(self.no_help_functions)
+
     def _set_nick_and_join(self):
         if self.config.password:
             self.send("PASS %s" % self.config.password)
@@ -209,7 +217,8 @@ class Bot(object):
             self.join(channel, self.welcome_message)
 
     def _bootstrap_connect(self):
-        gevent.spawn(self._connect)
+        self.conn = Connection(self.config)
+        gevent.spawn(self.conn.connect)
         self._set_nick_and_join()
 
     def _parse_line(self, line):
@@ -247,7 +256,8 @@ class Bot(object):
     def _raw_ping(self, line):
         """ Raw PING/PONG game. Prevent your bot from being disconnected by server
         """
-        self.send(line.replace('PING', 'PONG'))
+        msg = line.replace('PING', 'PONG')
+        self.send(msg)
 
     def _fork(self, line):
         """ fork and exec callback
@@ -264,7 +274,7 @@ class Bot(object):
         "Main programme. Connect to server and start listening"
         try:
             while True:
-                raw_line = self.iqueue.get()
+                raw_line = self.conn.iqueue.get()
                 logging.info("recv: %s" % raw_line.rstrip())
                 if raw_line.startswith('PING'):
                     self._raw_ping(raw_line)
@@ -282,9 +292,8 @@ class Bot(object):
         """ sending irc message to irc server
         """
         msg = msg.strip()
-        logging.debug("send: %s" % msg)
-        self.oqueue.put(msg)
-        #self._socket.send(msg + "\r\n")
+        logging.info("sent: %s" % msg)
+        self.conn.oqueue.put(msg)
 
     def join(self, channel, message=None):
         """ join a irc channel
@@ -305,7 +314,7 @@ class Bot(object):
         for line in str(message).splitlines():
             for chunk in chunks(line, 100):
                 msg = 'PRIVMSG %s :%s' % (channel.strip(), chunk.strip())
-                logging.info('send: %s' % msg)
+                logging.info('sent: %s' % msg)
                 self.send(msg)
 
     def me(self, message):
@@ -325,11 +334,6 @@ class Bot(object):
         """ default handler for PRIVMSG
         """
         self._process_line(self.line)
-
-    def extra_call(self):
-        """ called at the end of the while True loop
-        """
-        pass
 
     # standard actions
     @direct
