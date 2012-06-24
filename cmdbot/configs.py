@@ -38,6 +38,7 @@ class GenericConfiguration(object):
 class IniFileConfiguration(GenericConfiguration):
     "Basic Configuration class. Loads a .ini file "
     def __init__(self):
+        self.as_dict = {}
         parser = argparse.ArgumentParser("CmdBot")
         parser.add_argument('ini_file',
             help='path to the ini file to extract configuration from')
@@ -50,12 +51,12 @@ class IniFileConfiguration(GenericConfiguration):
         self.host = config.get('general', 'host')
         self.channels = self._normalize_channels(str(config.get('general', 'channel')).split())
 
-        self.port = int(config.get('general', 'port', vars=DEFAULT_VARS))
+        self.port = int(config.get('general', 'port'))
         self.ssl = True if config.has_option('general', 'ssl') else DEFAULT_VARS['ssl']
-        self.nick = config.get('general', 'nick', vars=DEFAULT_VARS)
+        self.nick = config.get('general', 'nick')
         self.password = config.get('general', 'password', vars=DEFAULT_VARS)
         self.ident = config.get('general', 'ident', vars=DEFAULT_VARS)
-        self.realname = config.get('general', 'realname', vars=DEFAULT_VARS)
+        self.realname = config.get('general', 'realname')
 
         # special case: admins
         if config.has_option("general", "admins"):
@@ -68,6 +69,16 @@ class IniFileConfiguration(GenericConfiguration):
             admins = []
         self.admins = admins
 
+        for section in config.sections():
+            self.as_dict[section] = {}
+            for key, value in config.items(section):
+                self.as_dict[section][key] = value
+
+
+class DictConfiguration(GenericConfiguration):
+
+    def __init__(self):
+        pass
 
 class ArgumentConfiguration(GenericConfiguration):
     "Argument-based configuration."

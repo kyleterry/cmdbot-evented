@@ -15,9 +15,14 @@ import os
 import sys
 import socket
 import logging
+import gevent
+from gevent import monkey
 from ssl import wrap_socket, CERT_NONE
 import time
 from threading import Thread, Lock
+
+
+monkey.patch_all()
 
 
 if "CMDBOT_DEBUG" in os.environ:
@@ -112,7 +117,7 @@ class Bot(object):
     # One can override this
     config_class = IniFileConfiguration
 
-    def __init__(self):
+    def __init__(self, config_module=None):
         self.config = self.config_class()
         # special case: admins
         self.admins = self.config.admins
@@ -147,6 +152,7 @@ class Bot(object):
 
         while 1:
             try:
+                logging.info(_('Creating socket...'))
                 self._socket.connect((self.config.host, self.config.port))
                 break
             except socket.error as e:
@@ -219,31 +225,37 @@ class Bot(object):
     # public methods
     def run(self):
         "Main programme. Connect to server and start listening"
+        import ipdb; ipdb.set_trace()
         self._connect()
         readbuffer = ''
         try:
+            read_buffer = gevent.spawn(self._read_buffer())
             while 1:
-                readbuffer = readbuffer + self._socket.recv(1024).decode('utf')
-                if not readbuffer:
-                    logging.error("connection lost: '%s'" % readbuffer)
-                    # connection lost, reconnect
-                    self._close()
-                    self._connect()
-                    continue
-                temp = readbuffer.split("\n")  # string.split
-                readbuffer = temp.pop()
-                for raw_line in temp:
-                    logging.debug("recv: %s" % raw_line.rstrip())
-                    if raw_line.startswith('PING'):
-                        self._raw_ping(raw_line)
-                    else:
-                        self.line = self._parse_line(raw_line.rstrip())
-                        # exec callback as seperated process
-                        self._fork(self.line)
+                if read_buffer.successful():
+                    read_buffer.start()
         except KeyboardInterrupt:
             self.send('QUIT :%s' % self.exit_message)
             self._close()
             sys.exit(_("Bot has been shut down. See you."))
+
+    def _read_buffer(self):
+        readbuffer = ''
+        readbuffer = readbuffer + self._socket.recv(1024).decode('utf')
+        if not readbuffer:
+            logging.error("connection lost: '%s'" % readbuffer)
+            # connection lost, reconnect
+            self._close()
+            self._connect()
+        temp = readbuffer.split("\n")  # string.split
+        readbuffer = temp.pop()
+        for raw_line in temp:
+            logging.info("recv: %s" % raw_line.rstrip())
+            if raw_line.startswith('PING'):
+                self._raw_ping(raw_line)
+            else:
+                self.line = self._parse_line(raw_line.rstrip())
+                # exec callback as seperated process
+                self._fork(self.line)
 
     def send(self, msg):
         """ sending irc message to irc server
@@ -271,6 +283,7 @@ class Bot(object):
         for line in str(message).splitlines():
             for chunk in chunks(line, 100):
                 msg = 'PRIVMSG %s :%s' % (channel.strip(), chunk.strip())
+                logging.info('send: %s' % msg)
                 self.send(msg)
 
     def me(self, message):
@@ -290,6 +303,11 @@ class Bot(object):
         """ default handler for PRIVMSG
         """
         self._process_line(self.line)
+
+    def extra_call(self):
+        """ called at the end of the while True loop
+        """
+        pass
 
     # standard actions
     @direct
