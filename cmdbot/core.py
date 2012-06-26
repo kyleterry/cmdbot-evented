@@ -44,7 +44,7 @@ except:
     logging.info("Translation Not Found. Fallback to default")
 
 from cmdbot.configs import IniFileConfiguration
-from cmdbot.decorators import direct
+from cmdbot.decorators import direct, no_help
 
 import re
 irc_prefix_rem = re.compile(r'(.*?) (.*?) (.*)').match
@@ -81,10 +81,13 @@ class Line(object):
         self.direct = self.message.startswith(config.nick)
         self.verb = ''
         if self.message:
-            if self.direct:
-                self.verb = self.message.split()[1]
-            else:
-                self.verb = self.message.split()[0]
+            try:
+                if self.direct:
+                    self.verb = self.message.split()[1]
+                else:
+                    self.verb = self.message.split()[0]
+            except IndexError:
+                self.verb = 'confused'
 
         if self.direct:
             # remove 'BOTNICK: ' from message
@@ -251,7 +254,7 @@ class Bot(object):
                 self._process_noverb(line)
         except:
             logging.exception('Bot Error')
-            self.me("is going to die :( an exception occurs")
+            self.me("might die :(")
 
     def _raw_ping(self, line):
         """ Raw PING/PONG game. Prevent your bot from being disconnected by server
@@ -285,8 +288,8 @@ class Bot(object):
                     self._fork(self.line)
         except KeyboardInterrupt:
             self.send('QUIT :%s' % self.exit_message)
-            self._close()
-            sys.exit(_("Bot has been shut down. See you."))
+            self.conn._close()
+            sys.exit(_("Bot has been shut down."))
 
     def send(self, msg):
         """ sending irc message to irc server
@@ -314,7 +317,6 @@ class Bot(object):
         for line in str(message).splitlines():
             for chunk in chunks(line, 100):
                 msg = 'PRIVMSG %s :%s' % (channel.strip(), chunk.strip())
-                logging.info('sent: %s' % msg)
                 self.send(msg)
 
     def me(self, message):
@@ -360,6 +362,17 @@ class Bot(object):
             except AttributeError:
                 self.say(_('Sorry, command "%(command)s" unknown')
                     % {'command': command_name})
+
+    @direct
+    def do_info(self, line):
+        if self.config.as_dict['general']['enable_info']:
+            self.say('I am an evented IRC bot written in Python and gevent.')
+            self.say('I was made evented by http://github.com/kyleterry')
+
+    @direct
+    @no_help
+    def do_confused(self, line):
+        self.say('%(nick)s: I am totally confused. You have nothing to say?' % {'nick': line.nick_from})
 
 
 if __name__ == '__main__':
