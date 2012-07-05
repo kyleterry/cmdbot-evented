@@ -40,7 +40,7 @@ Install
 
 CmdBot is hosted on Github. If you want the latest code, go fetch it here:
 
-https://github.com/brunobord/cmdbot
+https://github.com/kyleterry/cmdbot-evented
 
 You can install the program using::
 
