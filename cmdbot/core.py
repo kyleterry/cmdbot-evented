@@ -272,6 +272,9 @@ class Bot(object):
         except AttributeError:
             pass
 
+    def run_call(self):
+        pass
+
     # public methods
     def run(self):
         "Main programme. Connect to server and start listening"
@@ -284,6 +287,7 @@ class Bot(object):
                 else:
                     #:TODO: self.line is probably going to be problematic
                     self.line = self._parse_line(raw_line.rstrip())
+                    self.run_call(self.line)
                     # exec callback as seperated process
                     self._fork(self.line)
         except KeyboardInterrupt:
