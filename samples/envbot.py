@@ -21,9 +21,9 @@ sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 import time
 import multiprocessing
 
-from cmdbot.core import Bot
-from cmdbot.decorators import direct, admin, regex
-from cmdbot.configs import EnvironmentConfiguration
+from cmdbot_evented.core import Bot
+from cmdbot_evented.decorators import direct, admin, regex
+from cmdbot_evented.configs import EnvironmentConfiguration
 
 
 class EnvBot(Bot):

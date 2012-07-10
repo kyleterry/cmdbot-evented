@@ -1,6 +1,6 @@
 import unittest
-from cmdbot.core import Bot
-from cmdbot.decorators import no_verb, no_help
+from cmdbot_evented.core import Bot
+from cmdbot_evented.decorators import no_verb, no_help
 
 
 class MockConfig(object):

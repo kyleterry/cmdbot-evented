@@ -1,3 +1,3 @@
-from cmdbot.core import Bot
-from cmdbot.decorators import direct, admin, contains
-from cmdbot.configs import IniFileConfiguration, ArgumentConfiguration
+from cmdbot_evented.core import Bot
+from cmdbot_evented.decorators import direct, admin, contains
+from cmdbot_evented.configs import IniFileConfiguration, ArgumentConfiguration

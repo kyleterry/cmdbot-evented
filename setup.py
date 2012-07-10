@@ -13,7 +13,7 @@ setup(name='cmdbot-evented',
       long_description=long_description,
       classifiers=[], # Get strings from http://pypi.python.org/pypi?%3Aaction=list_classifiers
       keywords='',
-      url='https://github.com/brunobord/cmdbot/',
+      url='https://github.com/kyleterry/cmdbot-evented/',
       author="Bruno Bord modified by Kyle Terry",
       author_email='bruno@jehaisleprintemps.net',
       license="Public Domain (WTFPL)",

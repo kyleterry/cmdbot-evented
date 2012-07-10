@@ -1,5 +1,5 @@
 import unittest
-from cmdbot.core import Bot
+from cmdbot_evented.core import Bot
 
 
 class BrainTestCase(unittest.TestCase):

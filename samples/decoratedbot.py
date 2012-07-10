@@ -6,9 +6,9 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 
-from cmdbot.core import Bot
-from cmdbot.decorators import direct, admin, no_verb, no_help
-from cmdbot.configs import ArgumentConfiguration
+from cmdbot_evented.core import Bot
+from cmdbot_evented.decorators import direct, admin, no_verb, no_help
+from cmdbot_evented.configs import ArgumentConfiguration
 
 
 class ArgumentBot(Bot):

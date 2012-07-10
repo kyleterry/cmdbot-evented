@@ -213,7 +213,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    ('index', 'cmdbot', u'CmdBot Documentation',
+    ('index', 'cmdbot_evented', u'CmdBot Documentation',
      [u'Bruno Bord'], 1)
 ]
 

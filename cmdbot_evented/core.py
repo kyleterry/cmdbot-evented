@@ -36,15 +36,15 @@ logging.basicConfig(level=logging.DEBUG)
 import gettext
 try:
     locale_path = os.path.join(os.path.dirname(os.path.abspath('.')), 'locale')
-    t = gettext.translation('cmdbot', locale_path)
+    t = gettext.translation('cmdbot_evented', locale_path)
     t.install()
     _ = t.gettext
 except:
     _ = gettext.gettext
     logging.info("Translation Not Found. Fallback to default")
 
-from cmdbot.configs import IniFileConfiguration
-from cmdbot.decorators import direct, no_help
+from cmdbot_evented.configs import IniFileConfiguration
+from cmdbot_evented.decorators import direct, no_help
 
 import re
 irc_prefix_rem = re.compile(r'(.*?) (.*?) (.*)').match
@@ -166,7 +166,7 @@ class Connection(object):
 
     def _send_loop(self):
         while True:
-            line = self.oqueue.get().splitlines()[0][:500]
+            line = self.oqueue.get().splitlines()[0]
             self._obuffer += line.encode('utf-8', 'replace') + '\r\n'
             while self._obuffer:
                 sent = self._socket.send(self._obuffer)

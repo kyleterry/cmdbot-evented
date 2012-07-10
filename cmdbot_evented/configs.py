@@ -23,7 +23,9 @@ class GenericConfiguration(object):
     def _normalize_channels(self, chan_list):
         channels = []
         for chan in chan_list:
-            channels.append(chan if chan.startswith("#") else "#" + chan)
+            if not chan.startswith("#"):
+                chan = '#' + chan
+            channels.append(tuple(chan.split()))
         return channels
 
     def __repr__(self):

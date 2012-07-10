@@ -20,8 +20,9 @@ def admin(func):
     def newfunc(bot, line):
         if line.nick_from in bot.config.admins:
             return func(bot, line)
-        else:
-            bot.say("%s is not an admin! Permission denied!" % line.nick_from)
+        #else:
+        #    pass
+        #    #bot.say("%s is not an admin! Permission denied!" % line.nick_from)
     return newfunc
 
 
