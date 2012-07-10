@@ -170,11 +170,13 @@ class Connection(object):
 
     def _send_loop(self):
         while True:
-            line = self.oqueue.get().splitlines()[0]
+            #line = self.oqueue.get().splitlines()[0]
+            line = self.oqueue.get()
             self._obuffer += line.encode('utf-8', 'replace') + '\r\n'
             while self._obuffer:
                 sent = self._socket.send(self._obuffer)
                 self._obuffer = self._obuffer[sent:]
+                time.sleep(.5)
 
 
 class Bot(object):
@@ -326,7 +328,7 @@ class Bot(object):
         if type(channels) not in (list, tuple):
             channels = (channels,)
         for line in str(message).splitlines():
-            for chunk in chunks(line, 100):
+            for chunk in chunks(line, 800):
                 for channel in channels:
                     msg = 'PRIVMSG %s :%s' % (channel.strip(), chunk.strip())
                     self.send(msg)
