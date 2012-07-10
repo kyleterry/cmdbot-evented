@@ -25,7 +25,7 @@ class GenericConfiguration(object):
         for chan in chan_list:
             if not chan.startswith("#"):
                 chan = '#' + chan
-            channels.append(tuple(chan.split()))
+            channels.append(chan)
         return channels
 
     def __repr__(self):
@@ -51,7 +51,7 @@ class IniFileConfiguration(GenericConfiguration):
 
         # Host and chan are the only arguments that *need* a user-defined value
         self.host = config.get('general', 'host')
-        self.channels = self._normalize_channels(str(config.get('general', 'channel')).split())
+        self.channels = self._normalize_channels(str(config.get('general', 'channels')).split())
 
         self.port = int(config.get('general', 'port'))
         self.ssl = True if config.has_option('general', 'ssl') else DEFAULT_VARS['ssl']

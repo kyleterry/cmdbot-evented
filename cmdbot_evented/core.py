@@ -133,7 +133,7 @@ class Connection(object):
             return socket.socket()
 
     def connect(self):
-        """ Connect to the server and join all channels
+        """ Connect to the server
         """
         logging.info(_("Connection to host..."))
         while True:
@@ -145,11 +145,15 @@ class Connection(object):
                 logging.exception(e)
                 logging.info("sleeping for 5 secs ...")
                 time.sleep(5)
+        gevent.spawn(self._spawn_send_and_recv_loops)
+
+    def _spawn_send_and_recv_loops(self):
         try:
             jobs = [gevent.spawn(self._recv_loop), gevent.spawn(self._send_loop)]
             gevent.joinall(jobs)
         finally:
             gevent.killall(jobs)
+
 
     def _close(self):
         """ closing irc connection
@@ -221,7 +225,7 @@ class Bot(object):
 
     def _bootstrap_connect(self):
         self.conn = Connection(self.config)
-        gevent.spawn(self.conn.connect)
+        self.conn.connect()
         self._set_nick_and_join()
 
     def _parse_line(self, line):
@@ -309,19 +313,23 @@ class Bot(object):
         if "," in channel:
             channel, password = channel.split(",")
         chan = "%s %s" % (channel, password)
+        logging.debug('join: %s' % chan)
         self.send("JOIN %s" % chan.strip())
         if message:
-            self.say(message, channel=channel.split(",")[0])
+            self.say(message, channels=channel)
 
-    def say(self, message, channel=None):
+    def say(self, message, channels=None):
         """ Say that `message` into given or current channel
         """
-        if not channel:
-            channel = self.line.channel
+        if not channels:
+            channels = self.line.channel
+        if type(channels) not in (list, tuple):
+            channels = (channels,)
         for line in str(message).splitlines():
             for chunk in chunks(line, 100):
-                msg = 'PRIVMSG %s :%s' % (channel.strip(), chunk.strip())
-                self.send(msg)
+                for channel in channels:
+                    msg = 'PRIVMSG %s :%s' % (channel.strip(), chunk.strip())
+                    self.send(msg)
 
     def me(self, message):
         """ /me 'message'
